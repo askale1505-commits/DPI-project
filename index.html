@@ -1,0 +1,502 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPI | Encrypted Traffic Analyzer</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+<header class="topbar">
+    <div class="brand">
+        <div class="brand-icon">🛡</div>
+        <div>
+            <h2>DPI<span> Analyzer</span></h2>
+            <p>NETWORK SECURITY DASHBOARD</p>
+        </div>
+    </div>
+
+    <div class="system-status">
+        <span class="status-dot"></span>
+        Analysis System
+    </div>
+</header>
+
+<main class="container">
+
+    <section class="welcome">
+        <div>
+            <p class="eyebrow">DEEP PACKET INSPECTION</p>
+            <h1>Encrypted Traffic Classification</h1>
+            <p class="subtitle">
+                Analyze network packets, inspect protocols, and identify
+                possible packet-loss indicators from PCAP files.
+            </p>
+        </div>
+
+        <div class="security-icon">⌁</div>
+    </section>
+
+    <!-- PCAP UPLOAD -->
+    <section class="panel upload-panel">
+        <div class="section-heading">
+            <div>
+                <h2>Upload Network Capture</h2>
+                <p>Select a packet capture file to begin analysis.</p>
+            </div>
+            <span class="step-label">STEP 01</span>
+        </div>
+
+        <form id="uploadForm">
+            <label for="pcapFile" class="upload-area">
+                <div class="upload-icon">↑</div>
+                <strong id="fileTitle">Choose a PCAP file</strong>
+                <span id="fileSubtitle">PCAP, PCAPNG or CAP format</span>
+                <span class="browse-text">Browse files</span>
+
+                <input type="file"
+                       id="pcapFile"
+                       accept=".pcap,.pcapng,.cap"
+                       required>
+            </label>
+
+            <div class="upload-actions">
+                <p id="fileName">No file selected</p>
+
+                <button type="submit" id="analyzeButton">
+                    Analyze Traffic →
+                </button>
+            </div>
+        </form>
+
+        <div id="statusBox" class="status-box"
+             role="status" aria-live="polite">
+            Ready to analyze your network capture.
+        </div>
+    </section>
+
+    <!-- SUMMARY CARDS -->
+    <section class="section-block">
+        <div class="section-heading">
+            <div>
+                <h2>Traffic Overview</h2>
+                <p>Summary of packets identified in the capture.</p>
+            </div>
+            <span class="step-label">STEP 02</span>
+        </div>
+
+        <div class="stats-grid">
+
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span>Total Packets</span>
+                    <span class="stat-icon blue">▤</span>
+                </div>
+                <h3 id="total">—</h3>
+                <p>IPv4 packets analyzed</p>
+            </article>
+
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span>TCP Packets</span>
+                    <span class="stat-icon cyan">⇄</span>
+                </div>
+                <h3 id="tcp">—</h3>
+                <p>Transmission Control Protocol</p>
+            </article>
+
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span>UDP Packets</span>
+                    <span class="stat-icon purple">↗</span>
+                </div>
+                <h3 id="udp">—</h3>
+                <p>User Datagram Protocol</p>
+            </article>
+
+            <article class="stat-card">
+                <div class="stat-top">
+                    <span>Possible Loss Indicators</span>
+                    <span class="stat-icon red">!</span>
+                </div>
+                <h3 id="lostPackets">—</h3>
+                <p>Observed TCP sequence gaps</p>
+            </article>
+
+        </div>
+    </section>
+
+    <!-- CHARTS -->
+    <section class="section-block">
+        <div class="section-heading">
+            <div>
+                <h2>Classification Analytics</h2>
+                <p>Visual breakdown of traffic categories and protocols.</p>
+            </div>
+            <span class="step-label">STEP 03</span>
+        </div>
+
+        <div class="charts-grid">
+
+            <article class="panel chart-panel">
+                <h3>Traffic Classification</h3>
+                <p class="panel-description">
+                    Packets by traffic category
+                </p>
+
+                <div class="chart-container">
+                    <canvas id="trafficChart"></canvas>
+                </div>
+
+                <p id="summary" class="empty-message">
+                    Upload a capture file to view classification results.
+                </p>
+            </article>
+
+            <article class="panel chart-panel">
+                <h3>Protocol Distribution</h3>
+                <p class="panel-description">
+                    TCP, UDP and other protocols
+                </p>
+
+                <div class="chart-container">
+                    <canvas id="protocolChart"></canvas>
+                </div>
+            </article>
+
+        </div>
+    </section>
+
+    <!-- PACKET DETAILS -->
+    <section class="section-block">
+        <div class="section-heading">
+            <div>
+                <h2>Packet Inspection Results</h2>
+                <p>
+                    Review packet details, traffic types and possible loss indicators.
+                </p>
+            </div>
+            <span class="step-label">STEP 04</span>
+        </div>
+
+        <div class="panel table-panel">
+
+            <div class="table-toolbar">
+                <div>
+                    <h3>Packet Details</h3>
+                    <p id="packetCount">No packets loaded</p>
+                </div>
+
+                <input type="search"
+                       id="packetSearch"
+                       placeholder="Search IP, protocol, status..."
+                       aria-label="Search packet results"
+                       disabled>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Source IP</th>
+                            <th>Destination IP</th>
+                            <th>Protocol</th>
+                            <th>Source Port</th>
+                            <th>Destination Port</th>
+                            <th>Traffic Type</th>
+                            <th>Packet Status</th>
+                            <th>Size (B)</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="resultsBody">
+                        <tr>
+                            <td colspan="9" class="empty-cell">
+                                Upload a PCAP file to see packet details.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </section>
+
+    <footer>
+        <p>Deep Packet Inspection for Encrypted Traffic Classification</p>
+        <p class="footer-note">
+            Educational project. TCP sequence gaps and retransmissions
+            are indicators, not definitive proof of network packet loss.
+        </p>
+    </footer>
+
+</main>
+
+<script>
+    const form = document.getElementById("uploadForm");
+    const fileInput = document.getElementById("pcapFile");
+    const analyzeButton = document.getElementById("analyzeButton");
+    const statusBox = document.getElementById("statusBox");
+    const searchInput = document.getElementById("packetSearch");
+    const resultsBody = document.getElementById("resultsBody");
+    const packetCount = document.getElementById("packetCount");
+
+    let allPackets = [];
+    let trafficChartInstance = null;
+    let protocolChartInstance = null;
+
+    // Show the selected filename.
+    fileInput.addEventListener("change", function () {
+        const file = fileInput.files[0];
+
+        document.getElementById("fileName").textContent =
+            file ? file.name : "No file selected";
+
+        document.getElementById("fileTitle").textContent =
+            file ? "File selected successfully" : "Choose a PCAP file";
+
+        document.getElementById("fileSubtitle").textContent =
+            file ? "Ready for analysis" : "PCAP, PCAPNG or CAP format";
+    });
+
+    function showMessage(message, type) {
+        statusBox.textContent = message;
+        statusBox.className = "status-box " + (type || "");
+    }
+
+    // Draw a chart and replace the previous chart if needed.
+    function drawChart(canvasId, labels, values, type, oldChart) {
+        if (oldChart) {
+            oldChart.destroy();
+        }
+
+        return new Chart(document.getElementById(canvasId), {
+            type: type,
+
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Number of Packets",
+                    data: values,
+                    backgroundColor: [
+                        "#3b82f6",
+                        "#06b6d4",
+                        "#8b5cf6",
+                        "#f59e0b",
+                        "#10b981",
+                        "#f43f5e"
+                    ],
+                    borderColor: "#ffffff",
+                    borderWidth: 2,
+                    borderRadius: type === "bar" ? 6 : 0
+                }]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: type === "doughnut" ? "bottom" : "top"
+                    }
+                },
+
+                scales: type === "bar" ? {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 }
+                    }
+                } : {}
+            }
+        });
+    }
+
+    // Build the searchable packet table.
+    function renderTable(packets) {
+        const query = searchInput.value.trim().toLowerCase();
+
+        const filtered = packets.filter(function (packet) {
+            return Object.values(packet).some(function (value) {
+                return String(value).toLowerCase().includes(query);
+            });
+        });
+
+        resultsBody.replaceChildren();
+
+        if (filtered.length === 0) {
+            const row = resultsBody.insertRow();
+            const cell = row.insertCell();
+
+            cell.colSpan = 9;
+            cell.className = "empty-cell";
+            cell.textContent = "No matching packets found.";
+        } else {
+            filtered.forEach(function (packet) {
+                const row = resultsBody.insertRow();
+
+                const values = [
+                    allPackets.indexOf(packet) + 1,
+                    packet["Source IP"],
+                    packet["Destination IP"],
+                    packet["Protocol"],
+                    packet["Source Port"],
+                    packet["Destination Port"],
+                    packet["Traffic Type"],
+                    packet["Packet Status"] ?? "Not Available",
+                    packet["Packet Size"]
+                ];
+
+                values.forEach(function (value, index) {
+                    const cell = row.insertCell();
+                    cell.textContent = value ?? "";
+
+                    if (index === 6) {
+                        cell.className = "traffic-cell";
+                    }
+
+                    if (index === 7) {
+                        const status = String(value ?? "");
+
+                        if (status.includes("Possible Loss")) {
+                            cell.style.color = "#fb7185";
+                            cell.style.fontWeight = "700";
+                        } else if (status.includes("Retransmission")) {
+                            cell.style.color = "#fbbf24";
+                            cell.style.fontWeight = "700";
+                        } else if (status === "Normal") {
+                            cell.style.color = "#34d399";
+                        }
+                    }
+                });
+            });
+        }
+
+        packetCount.textContent =
+            filtered.length + " of " + allPackets.length + " packets shown";
+    }
+
+    searchInput.addEventListener("input", function () {
+        renderTable(allPackets);
+    });
+
+    // Upload and analyze a PCAP file.
+    form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const file = fileInput.files[0];
+
+        if (!file) {
+            showMessage("Please select a PCAP file first.", "error");
+            return;
+        }
+
+        if (!/\.(pcap|pcapng|cap)$/i.test(file.name)) {
+            showMessage(
+                "Please choose a PCAP, PCAPNG or CAP file.",
+                "error"
+            );
+            return;
+        }
+
+        const data = new FormData();
+        data.append("pcap_file", file);
+
+        analyzeButton.disabled = true;
+        analyzeButton.textContent = "Analyzing...";
+
+        showMessage(
+            "Reading packets and classifying network traffic...",
+            "loading"
+        );
+
+        try {
+            const response = await fetch("/analyze", {
+                method: "POST",
+                body: data
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || "Analysis failed.");
+            }
+
+            // Update summary cards.
+            document.getElementById("total").textContent =
+                result.total_packets.toLocaleString();
+
+            document.getElementById("tcp").textContent =
+                result.tcp_packets.toLocaleString();
+
+            document.getElementById("udp").textContent =
+                result.udp_packets.toLocaleString();
+
+            // Count possible sequence-gap indicators returned by Python.
+            const lossCount = result.packets.filter(function (packet) {
+                return String(packet["Packet Status"] || "")
+                    .includes("Possible Loss");
+            }).length;
+
+            document.getElementById("lostPackets").textContent =
+                lossCount.toLocaleString();
+
+            // Update traffic summary.
+            document.getElementById("summary").textContent =
+                Object.entries(result.traffic_summary)
+                    .map(function ([name, count]) {
+                        return name + ": " + count + " packets";
+                    })
+                    .join(" • ") || "No traffic categories found.";
+
+            // Draw classification chart.
+            trafficChartInstance = drawChart(
+                "trafficChart",
+                Object.keys(result.traffic_summary),
+                Object.values(result.traffic_summary),
+                "bar",
+                trafficChartInstance
+            );
+
+            // Draw protocol chart.
+            protocolChartInstance = drawChart(
+                "protocolChart",
+                Object.keys(result.protocol_summary),
+                Object.values(result.protocol_summary),
+                "doughnut",
+                protocolChartInstance
+            );
+
+            // Display packet details.
+            allPackets = result.packets;
+            searchInput.disabled = false;
+            searchInput.value = "";
+
+            renderTable(allPackets);
+
+            showMessage(
+                "Analysis completed successfully. " +
+                result.total_packets + " packets processed.",
+                "success"
+            );
+
+        } catch (error) {
+            showMessage("Analysis error: " + error.message, "error");
+        } finally {
+            analyzeButton.disabled = false;
+            analyzeButton.textContent = "Analyze Traffic →";
+        }
+    });
+</script>
+
+</body>
+</html>
